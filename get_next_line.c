@@ -12,103 +12,108 @@
 
 #include "get_next_line.h"
 
-t_list	*find_fd(t_list *head, const int fd)
+void ft_delone(void *str, size_t len)
 {
-	while (head)
+	if (str)
 	{
-		if ((int)head->content_size == fd)
-			return (head);
-		head = head->next;
+		free(str);
+		len = 0;
 	}
-	return (NULL);
 }
 
-t_list	*add_fd(t_list **head, const int fd)
+char *list_to_str(t_list **list)
 {
-	t_list	*new;
+	size_t len;
+	t_list *ptr;
+	char *str;
 
-	if (!(new = ft_lstnew("\0", (size_t)fd)))
-		return (NULL);
-	ft_lstadd(head, new);
-	return (new);
+	ptr = *list;
+	len = 0;
+	while (ptr)
+	{
+		len += ptr->content_size;
+		ptr = ptr->next;
+	}
+	if ((str = ft_strnew(len + 1)))
+	{
+		ptr = *list;
+		while (ptr)
+		{
+			ft_strncat(str, ptr->content, ptr->content_size);
+			ptr = ptr->next;
+		}
+	}
+	ft_lstdel(list, &ft_delone);
+	return (str);
 }
 
-void	crutch(void *s, size_t size)
+int get_next_line(const int fd, char **line)
 {
-	ft_memdel(&s);
-	size = 0;
-}
+	static t_list *str_list;
+	t_list *ptr;
+	char *endlloc;
+	char buff[BUFF_SIZE + 1];
+	ssize_t len;
 
-size_t	get_strlist(const int fd, char *content, t_list **strlist)
-{
-	int		len;
-	char	buff[BUFF_SIZE + 1];
-	t_list	*ptr;
+	if (!str_list)
+	{
+		if ((len = read(fd, buff, BUFF_SIZE)) <= 0)
+		{
+			return (len == 0 ? END : ERR);
+		}
+		buff[len] = 0;
+		if ((endlloc = strchr(buff, '\n')))
+		{
+			*endlloc++ = 0;
+			if (!(*line = ft_strdup(buff)) || (*endlloc && !(str_list = ft_lstnew(endlloc, sizeof(char) * (len - (endlloc - buff) + 1)))))
+			{
+				return (ERR);
+			}
+			return (OK);
+		}
+		if (!(str_list = ft_lstnew(buff, sizeof(char) * (len + 1))))
+		{
+			return (ERR);
+		}
+	}
+	else if ((endlloc = ft_strchr(str_list->content, '\n')))
+	{
+		*endlloc++ = 0;
+		ptr = (*endlloc ? ft_lstnew(endlloc, sizeof(char) * (str_list->content_size - (endlloc - (char *)str_list->content))) : NULL);
+		str_list->content_size = endlloc - (char *)str_list->content;
+		if (!(*line = list_to_str(&str_list)))
+		{
+			ft_lstdelone(&ptr, ft_delone);
+			return (ERR);
+		}
+		str_list = ptr;
+		return (OK);
+	}
+	ptr = str_list;
 
-	if (!(*strlist = ft_lstnew(content, ft_strlen(content))))
-		return (0);
-	ptr = *strlist;
 	while ((len = read(fd, buff, BUFF_SIZE)))
 	{
 		buff[len] = 0;
-		if (!(ptr->next = ft_lstnew(ft_strdup(buff), len)))
+		if ((endlloc = strchr(buff, '\n')))
 		{
-			ft_lstdel(strlist, &crutch);
-			return (0);
+			*endlloc++ = 0;
+			if (!(ptr->next = ft_lstnew(buff, sizeof(char) * (endlloc - buff + 1))))
+			{
+				ft_lstdel(&str_list, &ft_delone);
+				return (ERR);
+			}
+			break;
+		}
+		if (!(ptr->next = ft_lstnew(buff, sizeof(char) * (len + 1))))
+		{
+			ft_lstdel(&str_list, &ft_delone);
+			return (ERR);
 		}
 		ptr = ptr->next;
-		if (ft_strchr(buff, '\n'))
-			break;
 	}
-	if (*strlist == ptr)
-		return ((*strlist)->content_size);
-	if (*strlist + 1 == ptr)
-		return ((*strlist)->content_size + ptr->content_size);
-	return ((*strlist - ptr - 2) * BUFF_SIZE + \
-			(*strlist)->content_size + ptr->content_size);
-}
-
-t_list	*strlist_to_line(t_list *ptr, char *line, size_t l_line)
-{
-	char	*newline;
-
-	while (ptr->next)
+	if (!(*line = list_to_str(&str_list)) || (endlloc && *endlloc && !(str_list = ft_lstnew(endlloc, sizeof(char) * (len - (endlloc - buff) + 1)))))
 	{
-		ft_strlcat(line, ptr->content, l_line);
-		ptr = ptr->next;
-	}
-	if ((newline = ft_strchr(ptr->content, '\n')))
-		*newline++ = 0;
-	ft_strlcat(line, ptr->content, l_line);
-	ptr->content = newline;
-	return (ptr);
-}
-
-int		get_next_line(const int fd, char **line)
-{
-	static t_list	*flist;
-	t_list			*curr;
-	char			*newline;
-	t_list			*strlist;
-	size_t			l_strlist;
-
-	if (!(curr = find_fd(flist, fd)) && !(curr = add_fd(&flist, fd)))
 		return (ERR);
-	if ((newline = ft_strchr(curr->content, '\n')))
-	{
-		*newline = 0;
-		*line = ft_strdup(curr->content);
-		curr->content = newline + 1;
-		return (OK);
 	}
-	l_strlist = get_strlist(fd, curr->content, &strlist);
-	free(curr->content);
-	if (!(*line = ft_strnew(l_strlist)))
-		return (ERR);
-	curr->content = ft_strdup(strlist_to_line(strlist, *line, \
-				l_strlist)->content);
-	ft_lstdel(&strlist, &crutch);
-	if (!curr->content)
-		return (END);
 	return (OK);
 }
