@@ -63,7 +63,7 @@ int proc_rem(t_list *fd_list, char **line)
 		if (!(str_list = ft_lstnew(buff, sizeof(char) * (len + 1))))
 			return (ERR);
 	}
-
+	fd_list->content = NULL;
 	ptr = str_list;
 	while (1)
 	{
@@ -84,7 +84,6 @@ int proc_rem(t_list *fd_list, char **line)
 		}
 		ptr = ptr->next;
 	}
-	fd_list->content = (endlloc ? fd_list->content : NULL);
 	return ((*line = list_to_str(&str_list)) ? OK : ERR);
 }
 
