@@ -63,35 +63,20 @@ int proc_rem(t_list *fd_list, char **line)
 		if (!(str_list = ft_lstnew(buff, sizeof(char) * (len + 1))))
 			return (ERR);
 	}
-	if ((endlloc = ft_strchr(str_list->content, '\n')))
-	{
-		*endlloc++ = 0;
-		ptr = (*endlloc ? ft_lstnew(endlloc, sizeof(char) * (str_list->content_size - (endlloc - (char *)str_list->content))) : NULL);
-		str_list->content_size = endlloc - (char *)str_list->content;
-		if (!(*line = list_to_str(&str_list)))
-		{
-			ft_lstdelone(&ptr, ft_delone);
-			return (ERR);
-		}
-		str_list = ptr;
-		fd_list->content = str_list;
-		return (OK);
-	}
-	ptr = str_list;
 
-	while ((len = read(fd_list->content_size, buff, BUFF_SIZE)))
+	ptr = str_list;
+	while (1)
 	{
-		buff[len] = 0;
-		if ((endlloc = ft_strchr(buff, '\n')))
+		if ((endlloc = ft_strchr(ptr->content, '\n')))
 		{
 			*endlloc++ = 0;
-			if (!(ptr->next = ft_lstnew(buff, sizeof(char) * (endlloc - buff + 1))))
-			{
-				ft_lstdel(&str_list, &ft_delone);
-				return (ERR);
-			}
+			fd_list->content = (*endlloc ? ft_lstnew(endlloc, sizeof(char) * (ptr->content_size - (endlloc - (char *) ptr->content))) : NULL);
+			ptr->content_size = endlloc - (char *) ptr->content;
 			break;
 		}
+		if (!(len = read(fd_list->content_size, buff, BUFF_SIZE)))
+			break;
+		buff[len] = 0;
 		if (!(ptr->next = ft_lstnew(buff, sizeof(char) * (len + 1))))
 		{
 			ft_lstdel(&str_list, &ft_delone);
@@ -99,10 +84,8 @@ int proc_rem(t_list *fd_list, char **line)
 		}
 		ptr = ptr->next;
 	}
-	if (!(*line = list_to_str(&str_list)) || (endlloc && *endlloc && !(str_list = ft_lstnew(endlloc, sizeof(char) * (len - (endlloc - buff) + 1)))))
-		return (ERR);
-	fd_list->content = str_list;
-	return (OK);
+	fd_list->content = (endlloc ? fd_list->content : NULL);
+	return ((*line = list_to_str(&str_list)) ? OK : ERR);
 }
 
 int get_next_line(const int fd, char **line)
