@@ -70,7 +70,11 @@ int proc_rem(t_list *fd_list, char **line)
 		if ((endlloc = ft_strchr(ptr->content, '\n')))
 		{
 			*endlloc++ = 0;
-			fd_list->content = (*endlloc ? ft_lstnew(endlloc, sizeof(char) * (ptr->content_size - (endlloc - (char *) ptr->content))) : NULL);
+			if (*endlloc && !(fd_list->content = ft_lstnew(endlloc, sizeof(char) * (ptr->content_size - (endlloc - (char *) ptr->content)))))
+			{
+				ft_lstdel(&str_list, &ft_lstdelone);
+				return (ERR);
+			}
 			ptr->content_size = endlloc - (char *) ptr->content;
 			break;
 		}
