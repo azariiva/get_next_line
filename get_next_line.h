@@ -6,17 +6,17 @@
 /*   By: blinnea <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/09/21 15:28:36 by blinnea           #+#    #+#             */
-/*   Updated: 2019/09/28 12:53:23 by blinnea          ###   ########.fr       */
+/*   Updated: 2019/10/11 18:05:44 by blinnea          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef GET_NEXT_LINE
+#ifndef GET_NEXT_LINE_H
 
-# define GET_NEXT_LINE
+# define GET_NEXT_LINE_H
 
 # include "libft.h"
 
-# define BUFF_SIZE 100
+# define BUFF_SIZE 1
 
 enum
 {

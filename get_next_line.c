@@ -1,31 +1,38 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   get_next_linec.c                                   :+:      :+:    :+:   */
-/*                                  x                  +:+ +:+         +:+     */
+/*   get_next_line.c                                    :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
 /*   By: blinnea <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2019/09/21 15:30:40 by blinnea           #+#    #+#             */
-/*   Updated: 2019/09/28 17:18:25 by blinnea          ###   ########.fr       */
+/*   Created: 2019/10/11 17:54:47 by blinnea           #+#    #+#             */
+/*   Updated: 2019/10/11 18:16:58 by blinnea          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line.h"
 
-void ft_delone(void *str, size_t len)
+static void	ft_strlstdel(t_list **alst)
 {
-	if (str)
+	t_list	*ptr;
+	t_list	*todel;
+
+	ptr = *alst;
+	while (ptr)
 	{
-		free(str);
-		len = 0;
+		todel = ptr;
+		ptr = ptr->next;
+		free(todel->content);
+		free(todel);
 	}
+	*alst = NULL;
 }
 
-char *list_to_str(t_list **list)
+static char	*list_to_str(t_list **list)
 {
-	size_t len;
-	t_list *ptr;
-	char *str;
+	size_t	len;
+	t_list	*ptr;
+	char	*str;
 
 	ptr = *list;
 	len = 0;
@@ -43,66 +50,73 @@ char *list_to_str(t_list **list)
 			ptr = ptr->next;
 		}
 	}
-	ft_lstdel(list, &ft_delone);
+	ft_strlstdel(list);
 	return (str);
 }
 
-int proc_rem(t_list *fd_list, char **line)
+static int	ft_read_strlst(t_list *fdlst, t_list **strlst, char **line, \
+		char *buff)
 {
-	t_list *str_list;
-	t_list *ptr;
-	char *endlloc;
-	char buff[BUFF_SIZE + 1];
-	ssize_t len;
-	
-	if (!(str_list = (t_list *) fd_list->content))
-	{
-		if ((len = read(fd_list->content_size, buff, BUFF_SIZE)) <= 0)
-			return (len == 0 ? END : ERR);
-		buff[len] = 0;
-		if (!(str_list = ft_lstnew(buff, sizeof(char) * (len + 1))))
-			return (ERR);
-	}
-	fd_list->content = NULL;
-	ptr = str_list;
+	t_list	*ptr;
+	char	*endlloc;
+	ssize_t	len;
+
+	ptr = *strlst;
 	while (1)
 	{
 		if ((endlloc = ft_strchr(ptr->content, '\n')))
 		{
 			*endlloc++ = 0;
-			if (*endlloc && !(fd_list->content = ft_lstnew(endlloc, sizeof(char) * (ptr->content_size - (endlloc - (char *) ptr->content)))))
-			{
-				ft_lstdel(&str_list, &ft_lstdelone);
+			if (*endlloc && !(fdlst->content = ft_lstnew(endlloc, \
+							sizeof(char) * (ptr->content_size - (endlloc - \
+									(char *)ptr->content)))))
 				return (ERR);
-			}
-			ptr->content_size = endlloc - (char *) ptr->content;
-			break;
+			ptr->content_size = endlloc - (char *)ptr->content;
+			break ;
 		}
-		if (!(len = read(fd_list->content_size, buff, BUFF_SIZE)))
-			break;
+		if (!(len = read(fdlst->content_size, buff, BUFF_SIZE)))
+			break ;
 		buff[len] = 0;
 		if (!(ptr->next = ft_lstnew(buff, sizeof(char) * (len + 1))))
-		{
-			ft_lstdel(&str_list, &ft_delone);
 			return (ERR);
-		}
 		ptr = ptr->next;
 	}
-	return ((*line = list_to_str(&str_list)) ? OK : ERR);
+	return ((*line = list_to_str(strlst)) ? OK : ERR);
 }
 
-int get_next_line(const int fd, char **line)
+static int	ft_read_fdlst(t_list *fdlst, char **line)
 {
-	static t_list *fd_list;
-	t_list *ptr;
-	int res;
+	t_list	*strlst;
+	char	buff[BUFF_SIZE + 1];
+	ssize_t	len;
+	int		res;
 
-	ptr = fd_list;
+	if (!(strlst = (t_list *)fdlst->content))
+	{
+		if ((len = read(fdlst->content_size, buff, BUFF_SIZE)) <= 0)
+			return (len == 0 ? END : ERR);
+		buff[len] = 0;
+		if (!(strlst = ft_lstnew(buff, sizeof(char) * (len + 1))))
+			return (ERR);
+	}
+	fdlst->content = NULL;
+	if ((res = ft_read_strlst(fdlst, &strlst, line, buff)) == ERR)
+		ft_strlstdel(&strlst);
+	return (res);
+}
+
+int			get_next_line(const int fd, char **line)
+{
+	static t_list	*fdlst;
+	t_list			*ptr;
+	int				res;
+
+	ptr = fdlst;
 	while (ptr)
 	{
-		if (ptr->content_size == (size_t) fd)
+		if (ptr->content_size == (size_t)fd)
 		{
-			if ((res = proc_rem(ptr, line)) == ERR)
+			if ((res = ft_read_fdlst(ptr, line)) == ERR)
 				ptr->content = NULL;
 			return (res);
 		}
@@ -111,8 +125,8 @@ int get_next_line(const int fd, char **line)
 	if (!(ptr = ft_lstnew(NULL, 0)))
 		return (ERR);
 	ptr->content_size = fd;
-	ft_lstadd(&fd_list, ptr);
-	if ((res = proc_rem(fd_list, line)) == ERR)
-		fd_list->content = NULL;
+	ft_lstadd(&fdlst, ptr);
+	if ((res = ft_read_fdlst(fdlst, line)) == ERR)
+		fdlst->content = NULL;
 	return (res);
 }
